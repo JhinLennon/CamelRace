@@ -1,4 +1,4 @@
-//TODO:
+//TODO: crear hilos para la entrada y salida de paquetes
 import java.io.*;
 import java.net.*;
 
