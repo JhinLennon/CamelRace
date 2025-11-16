@@ -9,7 +9,6 @@ public class AsignacionGrupo implements Serializable {
     public int tamGrupo;
     public long semillaCarrera;
 
-
     public AsignacionGrupo(int id, String ip, int p, int t, long seed) {
         idGrupo = id;
         ipMulticast = ip;

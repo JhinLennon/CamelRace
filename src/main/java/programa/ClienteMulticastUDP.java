@@ -1,6 +1,12 @@
-//TODO: crear hilos para la entrada y salida de paquetes
+package programa;
+
+import javafx.application.Platform;
+import tarea.camelrace.CamelController;
+
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClienteMulticastUDP {
     private String nombreUsuario;
@@ -8,20 +14,26 @@ public class ClienteMulticastUDP {
     private int multicastPort;
     private MulticastSocket socket;
     private boolean conectado;
-    InetAddress grupo =null;
+    private InetAddress grupo;
+    private CamelController controlador;
 
-    public ClienteMulticastUDP(String nombreUsuario){
-        this.nombreUsuario=nombreUsuario;
+    public ClienteMulticastUDP(String nombreUsuario) {
+        this.nombreUsuario = nombreUsuario;
     }
-    public ClienteMulticastUDP(String nombreUsuario, String multicastIP, int multicastPort){
+
+    public ClienteMulticastUDP(String nombreUsuario, String multicastIP, int multicastPort) {
         this.nombreUsuario = nombreUsuario;
         this.multicastIP = multicastIP;
         this.multicastPort = multicastPort;
     }
 
+    public void setControlador(CamelController controlador) {
+        this.controlador = controlador;
+    }
+
     public void iniciar() {
-        SocketAddress sockadd=null;
-        NetworkInterface netIf=null;
+        SocketAddress sockadd = null;
+        NetworkInterface netIf = null;
         try {
             if (multicastIP == null || multicastPort == 0) {
                 if (!obtenerGrupoDelServidor()) {
@@ -30,59 +42,55 @@ public class ClienteMulticastUDP {
                 }
             }
 
-            // Unirse al grupo multicast
             socket = new MulticastSocket(multicastPort);
-            InetAddress grupo = InetAddress.getByName(multicastIP);
+            grupo = InetAddress.getByName(multicastIP);
 
-            sockadd=new InetSocketAddress(grupo,multicastPort);
-            netIf=NetworkInterface.getByInetAddress(InetAddress.getByName("DESKTOP"));//cambiarlo por su hostname
-            socket.joinGroup(sockadd,netIf);
+            sockadd = new InetSocketAddress(grupo, multicastPort);
+            netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+            socket.joinGroup(sockadd, netIf);
             conectado = true;
 
             System.out.println("Conectado al grupo " + multicastIP + ":" + multicastPort);
-            // Enviar mensajes
-            enviarMensajes(grupo);
-            //  recibir mensajes
-            recibirMensajes();
 
-            
+            Thread hiloRecepcion = new Thread(this::recibirMensajes);
+            Thread hiloEnvio = new Thread(this::enviarJugadores);
 
-        } catch (IOException e) {
+            hiloRecepcion.start();
+            hiloEnvio.start();
+
+            hiloRecepcion.join();
+            hiloEnvio.join();
+
+        } catch (IOException | InterruptedException e) {
             System.err.println("Error: " + e.getMessage());
         } finally {
-            desconectar(sockadd,netIf);
+            desconectar(sockadd, netIf);
         }
     }
 
-    //intento de conexion tcp para la prueba de la clase(se quitaria al tener la clase de marcos)
     private boolean obtenerGrupoDelServidor() {
         System.out.println("Conectando al servidor para obtener grupo multicast...");
 
-        String serverHost="localhost";
-        int serverPuerto=8080;
+        String serverHost = "localhost";
+        int serverPuerto = 8080;
 
         try (Socket serverSocket = new Socket(serverHost, serverPuerto);
-             BufferedReader in = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()));) {
+             BufferedReader in = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()))) {
 
-            // Leer mensaje inicial del servidor
             String respuesta = in.readLine();
             System.out.println("Servidor: " + respuesta);
 
             if (respuesta.startsWith("WAITING")) {
                 System.out.println("Esperando asignación de grupo multicast...");
 
-                // Esperar la asignación del grupo
                 while ((respuesta = in.readLine()) != null) {
                     System.out.println("Servidor: " + respuesta);
 
                     if (respuesta.startsWith("GROUP_ASSIGNED:")) {
-                        // Parsear la información del grupo multicast
-                        // Formato: GROUP_ASSIGNED:230.0.0.1:50001
                         String[] partes = respuesta.split(":");
                         if (partes.length >= 3) {
                             this.multicastIP = partes[1];
                             this.multicastPort = Integer.parseInt(partes[2]);
-
                             System.out.println("Grupo asignado: " + multicastIP + ":" + multicastPort);
                             return true;
                         }
@@ -97,58 +105,88 @@ public class ClienteMulticastUDP {
         return false;
     }
 
-    //recibe paquetes de objetos para luego printarlos
     private void recibirMensajes() {
-        byte[] buffer = new byte[1024];
+        byte[] buffer = new byte[4096];
         while (conectado) {
             try {
                 DatagramPacket paqueteRecibir = new DatagramPacket(buffer, buffer.length);
                 socket.receive(paqueteRecibir);
 
-                // Convertir bytes a objeto Persona
-                ByteArrayInputStream bais = new ByteArrayInputStream(paqueteRecibir.getData());
+                ByteArrayInputStream bais = new ByteArrayInputStream(paqueteRecibir.getData(), 0, paqueteRecibir.getLength());
                 ObjectInputStream ois = new ObjectInputStream(bais);
-                Mensaje msg = (Mensaje) ois.readObject();
+                DatosCarrera datos = (DatosCarrera) ois.readObject();
                 ois.close();
 
-                System.out.println(msg);
-            } catch (IOException|ClassNotFoundException e) {
+                System.out.println("Datos recibidos: " + datos);
+
+                if (controlador != null) {
+                    Platform.runLater(() -> controlador.actualizarDatosJugadores(datos));
+                }
+
+            } catch (IOException | ClassNotFoundException e) {
                 if (conectado) System.err.println("Error recibiendo: " + e.getMessage());
             }
         }
     }
 
-    //envia paquetes de objetos para luego printarlos
-    private void enviarMensajes(InetAddress grupo) {
-        try(BufferedReader in=new BufferedReader(new InputStreamReader(System.in))) {
-
+    private void enviarJugadores() {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
             while (conectado) {
-                String msj=in.readLine();
-                Mensaje msg=new Mensaje(msj);
-                if (msj.equals("salir")) break;
+                System.out.print("Ingrese posición X del jugador (o 'salir' para terminar): ");
+                String input = in.readLine();
 
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ObjectOutputStream oos = new ObjectOutputStream(baos);
-                oos.writeObject(msg);
-                oos.close();
+                if (input.equals("salir")) break;
 
-                byte[] buf = baos.toByteArray();
+                try {
+                    double posicionX = Double.parseDouble(input);
+                    Jugador jugador = new Jugador(nombreUsuario, posicionX, "jugador_" + nombreUsuario);
+                    DatosCarrera datos = new DatosCarrera(new ArrayList<>(List.of(jugador)), true, null);
 
-                // Enviar datagrama al servidor
-                DatagramPacket paquete = new DatagramPacket(buf, buf.length,grupo, multicastPort);
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ObjectOutputStream oos = new ObjectOutputStream(baos);
+                    oos.writeObject(datos);
+                    oos.close();
 
-                socket.send(paquete);
+                    byte[] buf = baos.toByteArray();
+                    DatagramPacket paquete = new DatagramPacket(buf, buf.length, grupo, multicastPort);
+                    socket.send(paquete);
+
+                    System.out.println("Enviado: " + jugador);
+
+                } catch (NumberFormatException e) {
+                    System.out.println("Por favor ingrese un número válido para la posición X");
+                }
             }
         } catch (IOException e) {
             System.err.println("Error enviando: " + e.getMessage());
+        }
+
+        conectado = false;
+    }
+
+    public void enviarDatosCarrera(DatosCarrera datos) {
+        if (!conectado || grupo == null) return;
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(baos);
+            oos.writeObject(datos);
+            oos.close();
+
+            byte[] buf = baos.toByteArray();
+            DatagramPacket paquete = new DatagramPacket(buf, buf.length, grupo, multicastPort);
+            socket.send(paquete);
+
+            System.out.println("Enviado: " + datos);
+        } catch (IOException e) {
+            System.err.println("Error enviando datos: " + e.getMessage());
         }
     }
 
     private void desconectar(SocketAddress sockadd, NetworkInterface netIf) {
         conectado = false;
         try {
-            if (socket != null) {
-                socket.leaveGroup(sockadd,netIf);
+            if (socket != null && sockadd != null && netIf != null) {
+                socket.leaveGroup(sockadd, netIf);
                 socket.close();
             }
         } catch (IOException e) {
@@ -156,47 +194,20 @@ public class ClienteMulticastUDP {
         }
     }
 
-    public static void main(String[] args) throws Exception{
-
-        BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
-        System.out.println("Cliente usuario: ");
+    public static void main(String[] args) throws Exception {
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        System.out.print("Cliente usuario: ");
         String nombre = in.readLine();
         ClienteMulticastUDP cliente;
 
-        if (args.length >= 3) {
-            // Usar grupo multicast proporcionado
-            String ip = args[1];
-            int puerto = Integer.parseInt(args[2]);
+        if (args.length >= 2) {
+            String ip = args[0];
+            int puerto = Integer.parseInt(args[1]);
             cliente = new ClienteMulticastUDP(nombre, ip, puerto);
         } else {
-            // Obtener grupo multicast del servidor (esto deberia de ir conectado a la clase que esta haciendo marcos para conseguir la ip y puerto)
             cliente = new ClienteMulticastUDP(nombre);
         }
 
         cliente.iniciar();
-    }
-}
-
-//clase de prueba se tendria que cambiar por un objeto que envie el usuario y la pasicion
-import java.io.Serializable;
-
-public class Mensaje implements Serializable {
-    String mensaje;
-
-    public Mensaje(String mensaje) {
-        this.mensaje=mensaje;
-    }
-
-    public String getMensaje() {
-        return mensaje;
-    }
-
-    public void setMensaje(String mensaje) {
-        this.mensaje = mensaje;
-    }
-
-    @Override
-    public String toString(){
-        return mensaje;
     }
 }

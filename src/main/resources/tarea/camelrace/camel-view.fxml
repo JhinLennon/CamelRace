@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.HBox?>
@@ -24,7 +25,7 @@
                 <Pane prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #FF5733;" />
                 <Pane prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #1E90FF;" />
                 <Pane prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #32CD32;" />
-            <Pane layoutX="10.0" layoutY="87.0" prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #FFD700;" />
+                <Pane layoutX="10.0" layoutY="87.0" prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #FFD700;" />
             </VBox>
 
             <!-- Línea vertical -->
@@ -34,18 +35,24 @@
                 <Pane prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #FF5733;" />
                 <Pane prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #1E90FF;" />
                 <Pane prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #32CD32;" />
-            <Pane layoutX="10.0" layoutY="87.0" prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #FFD700;" />
+                <Pane layoutX="10.0" layoutY="87.0" prefHeight="70.0" prefWidth="927.0" style="-fx-background-color: #FFD700;" />
             </VBox>
         </HBox>
 
         <HBox alignment="CENTER" prefHeight="231.0" prefWidth="846.0">
-         <children>
-            <Label id="texto" fx:id="texto" text="TEXTO">
-               <font>
-                  <Font name="Consolas Italic" size="38.0" />
-               </font>
-            </Label>
-         </children>
+            <children>
+                <Label id="texto" fx:id="texto" text="TEXTO">
+                    <font>
+                        <Font name="Consolas Italic" size="38.0" />
+                    </font>
+                </Label>
+            </children>
+        </HBox>
+
+        <HBox alignment="CENTER" spacing="10">
+            <Label text="Nombre de tu camello:" />
+            <TextField fx:id="nombreCamello" prefWidth="150" />
+            <Button onAction="#asignarNombreCamello" text="Asignar" />
         </HBox>
 
         <Button fx:id="iniciarCarreraButton" onAction="#onIniciarCarreraClick" prefWidth="158.0" text="Iniciar carrera">
@@ -57,28 +64,25 @@
 
     <!-- Panel de camellos (capa superior) -->
     <Pane fx:id="paneCamellos" mouseTransparent="true" pickOnBounds="false">
-
-        <ImageView fx:id="imagenCamellos1" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="37.0" preserveRatio="true">
+        <ImageView fx:id="imagenCamellos1" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="21.0" preserveRatio="true">
             <image>
                 <Image url="@../../images/camel.png" />
             </image>
         </ImageView>
-      <ImageView fx:id="imagenCamellos2" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="162.0" preserveRatio="true">
-         <image>
-            <Image url="@../../images/camel.png" />
-         </image>
-      </ImageView>
-      <ImageView fx:id="imagenCamellos3" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="285.0" preserveRatio="true">
-         <image>
-            <Image url="@../../images/camel.png" />
-         </image>
-      </ImageView>
-      <ImageView fx:id="imagenCamellos4" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="404.0" preserveRatio="true">
-         <image>
-            <Image url="@../../images/camel.png" />
-         </image>
-      </ImageView>
-
+        <ImageView fx:id="imagenCamellos2" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="138.0" preserveRatio="true">
+            <image>
+                <Image url="@../../images/camel.png" />
+            </image>
+        </ImageView>
+        <ImageView fx:id="imagenCamellos3" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="256.0" preserveRatio="true">
+            <image>
+                <Image url="@../../images/camel.png" />
+            </image>
+        </ImageView>
+        <ImageView fx:id="imagenCamellos4" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="371.0" preserveRatio="true">
+            <image>
+                <Image url="@../../images/camel.png" />
+            </image>
+        </ImageView>
     </Pane>
-
 </StackPane>
