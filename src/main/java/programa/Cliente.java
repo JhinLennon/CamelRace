@@ -9,12 +9,12 @@ import tarea.camelrace.*;
 public class Cliente {
 
     private static final String HOST_SERVIDOR = "192.168.113.13";
-    private static final int PUERTO_TCP = 6000;
+    public static final String ID = "jugador01";
 
     public static void main(String[] args) {
         try {
 
-            ClienteTCP clienteTCP = new ClienteTCP("jugador01", HOST_SERVIDOR);
+            ClienteTCP clienteTCP = new ClienteTCP(ID, HOST_SERVIDOR);
             AsignacionGrupo asignacion = clienteTCP.conectar();
 
 

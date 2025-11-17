@@ -37,12 +37,6 @@ public class ClienteMulticastUDP {
         SocketAddress sockadd = null;
         NetworkInterface netIf = null;
         try {
-            if (multicastIP == null || multicastPort == 0) {
-                if (!obtenerGrupoDelServidor()) {
-                    System.err.println("No se pudo obtener el grupo multicast del servidor");
-                    return;
-                }
-            }
 
             socket = new MulticastSocket(multicastPort);
             grupo = InetAddress.getByName(multicastIP);
@@ -68,43 +62,6 @@ public class ClienteMulticastUDP {
         } finally {
             desconectar(sockadd, netIf);
         }
-    }
-
-    private boolean obtenerGrupoDelServidor() {
-        System.out.println("Conectando al servidor para obtener grupo multicast...");
-
-        String serverHost = "localhost";
-        int serverPuerto = 6004;
-
-        try (Socket serverSocket = new Socket(serverHost, serverPuerto);
-             BufferedReader in = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()))) {
-
-            String respuesta = in.readLine();
-            System.out.println("Servidor: " + respuesta);
-
-            if (respuesta.startsWith("WAITING")) {
-                System.out.println("Esperando asignación de grupo multicast...");
-
-                while ((respuesta = in.readLine()) != null) {
-                    System.out.println("Servidor: " + respuesta);
-
-                    if (respuesta.startsWith("GROUP_ASSIGNED:")) {
-                        String[] partes = respuesta.split(":");
-                        if (partes.length >= 3) {
-                            this.multicastIP = partes[1];
-                            this.multicastPort = Integer.parseInt(partes[2]);
-                            System.out.println("Grupo asignado: " + multicastIP + ":" + multicastPort);
-                            return true;
-                        }
-                    }
-                }
-            }
-
-        } catch (IOException e) {
-            System.err.println("Error conectando al servidor: " + e.getMessage());
-        }
-
-        return false;
     }
 
     private void recibirMensajes() {
@@ -194,22 +151,5 @@ public class ClienteMulticastUDP {
         } catch (IOException e) {
             System.err.println("Error desconectando: " + e.getMessage());
         }
-    }
-
-    public static void main(String[] args) throws Exception {
-        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-        System.out.print("Cliente usuario: ");
-        String nombre = in.readLine();
-        ClienteMulticastUDP cliente;
-
-        if (args.length >= 2) {
-            String ip = args[0];
-            int puerto = Integer.parseInt(args[1]);
-            cliente = new ClienteMulticastUDP(nombre, ip, puerto);
-        } else {
-            cliente = new ClienteMulticastUDP(nombre);
-        }
-
-        cliente.iniciar();
     }
 }
