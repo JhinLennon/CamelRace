@@ -21,20 +21,20 @@ public class ClienteTCP {
         System.out.println("[CLIENT] Conectado al servidor TCP");
 
         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-        out.flush(); // Importante para que el otro extremo no se quede esperando el header
+        out.flush(); // Esto es correcto y necesario para evitar bloqueo
         ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-        out.writeObject(new SolicitudConexion(idCliente));
 
+        out.writeObject(new SolicitudConexion(idCliente)); // Envía solicitud de conexión
 
         System.out.println("[CLIENT] Esperando asignación de grupo...");
-
-        AsignacionGrupo asignacion = (AsignacionGrupo) in.readObject();
+        AsignacionGrupo asignacion = (AsignacionGrupo) in.readObject(); // Lee la asignación
 
         System.out.println("[CLIENT] Asignado al grupo " + asignacion.idGrupo);
         System.out.println("Multicast: " + asignacion.ipMulticast + ":" + asignacion.puerto);
 
         socket.close();
         return asignacion;
+
     }
     
 }

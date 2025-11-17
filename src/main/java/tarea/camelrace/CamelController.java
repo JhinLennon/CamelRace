@@ -14,7 +14,13 @@ import programa.Jugador;
 import java.util.ArrayList;
 import java.util.List;
 
+import static servidor.Servidor.TAM_GRUPO;
+
 public class CamelController {
+
+    private static final String[] JUGADORES_IDS = {
+            "jugador_1", "jugador_2", "jugador_3", "jugador_4"
+    };
 
     @FXML private Label texto;
     @FXML private Button iniciarCarreraButton;
@@ -30,7 +36,7 @@ public class CamelController {
     private AnimationTimer timer;
     private ClienteMulticastUDP clienteMulticastUDP;
     private String nombrePropioCamello = "";
-    private String idJugador = "jugador_1";
+    private String idJugador = "";
     private boolean carreraTerminada = false;
     private List<Jugador> jugadoresActuales = new ArrayList<>();
     private int jugadoresConectados = 0;
@@ -38,10 +44,7 @@ public class CamelController {
     @FXML
     public void initialize() {
         imagenCamellos = new ImageView[] {
-                imagenCamellos1,
-                imagenCamellos2,
-                imagenCamellos3,
-                imagenCamellos4
+                imagenCamellos1, imagenCamellos2, imagenCamellos3, imagenCamellos4
         };
         iniciarCarreraButton.setDisable(true);
     }
@@ -53,21 +56,46 @@ public class CamelController {
 
     @FXML
     public void conectar() {
-        if (nombreCamello.getText().trim().isEmpty()) {
+        String nombreInput = nombreCamello.getText().trim();
+        if (nombreInput.isEmpty()) {
             texto.setText("Por favor, introduce un nombre.");
             return;
         }
-        nombrePropioCamello = nombreCamello.getText().trim();
+        nombrePropioCamello = nombreInput;
+
+        // Asignar ID único basado en IDs disponibles y jugadores actuales
+        for (String id : JUGADORES_IDS) {
+            boolean idEnUso = jugadoresActuales.stream().anyMatch(j -> j.getId().equals(id));
+            if (!idEnUso) {
+                idJugador = id;
+                break;
+            }
+        }
         conectarButton.setDisable(true);
         nombreCamello.setDisable(true);
-        texto.setText("Conectado como: " + nombrePropioCamello);
+
+        texto.setText("Conectado como: " + nombrePropioCamello + " (" + idJugador + ")");
         iniciarCarreraButton.setDisable(false);
     }
 
     @FXML
-    protected void onIniciarCarreraClick(javafx.event.ActionEvent event) {
-        if (jugadoresConectados < 4) {
-            texto.setText("Esperando a 4 jugadores...");
+    protected void onIniciarCarreraClick() {
+        // Crear y enviar datos iniciales del jugador con posición 0
+        Jugador jugadorInicial = new Jugador(nombrePropioCamello, 0.0, idJugador);
+        List<Jugador> jugadoresIniciales = new ArrayList<>();
+        jugadoresIniciales.add(jugadorInicial);
+        DatosCarrera datosInicial = new DatosCarrera(jugadoresIniciales, false, null);
+        clienteMulticastUDP.enviarDatosCarrera(datosInicial);
+
+        // Esperar un momento para que se propague el mensaje y se actualicen los jugadores conectados
+        try {
+            Thread.sleep(500); // 0.5 segundos, ajustar según necesidad
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        if (jugadoresConectados < TAM_GRUPO) {
+            texto.setText("Esperando a " + TAM_GRUPO + " jugadores...");
             return;
         }
 
@@ -90,7 +118,8 @@ public class CamelController {
     private void acelerarCamello() {
         if (carreraTerminada) return;
         int idx = obtenerIndicePorId(idJugador);
-        double velocidad = (Math.random() * (30 - 10) + 10);
+        if (idx < 0) return;
+        double velocidad = Math.random() * 20 + 10; // Velocidad aleatoria entre 10 y 30
         double nuevaPosicion = imagenCamellos[idx].getX() + velocidad;
         imagenCamellos[idx].setX(nuevaPosicion);
 
@@ -108,9 +137,9 @@ public class CamelController {
 
     private void verificarMeta() {
         int idx = obtenerIndicePorId(idJugador);
-        if (imagenCamellos[idx].getX() >= META_X) {
+        if (idx >=0 && imagenCamellos[idx].getX() >= META_X) {
             carreraTerminada = true;
-            timer.stop();
+            if (timer != null) timer.stop();
             carreraTerminada();
         }
     }
@@ -118,29 +147,49 @@ public class CamelController {
     private void carreraTerminada() {
         iniciarCarreraButton.setDisable(true);
         texto.setText("¡Meta alcanzada!");
-        if (timer != null) timer.stop();
         carreraTerminada = true;
+        if (timer != null) timer.stop();
     }
 
     public void actualizarDatosJugadores(DatosCarrera datos) {
-        jugadoresActuales = datos.getJugadores();
-        jugadoresConectados = datos.getJugadores().size();
+        System.out.println("Datos recibidos: " + datos);
 
-        for (Jugador jugador : datos.getJugadores()) {
-            int idx = obtenerIndicePorId(jugador.getId());
-            if (idx >= 0) {
-                imagenCamellos[idx].setX(jugador.getPosicionX());
+        // Fusionar lista de jugadores actual con la recibida
+        for (Jugador nuevoJugador : datos.getJugadores()) {
+            boolean encontrado = false;
+            for (Jugador j : jugadoresActuales) {
+                if (j.getId().equals(nuevoJugador.getId())) {
+                    j.setNombre(nuevoJugador.getNombre());
+                    j.setPosicionX(nuevoJugador.getPosicionX());
+                    encontrado = true;
+                    break;
+                }
+            }
+            if (!encontrado) {
+                jugadoresActuales.add(nuevoJugador);
             }
         }
 
-        if (datos.getGanador() != null) {
-            texto.setText("¡Ganó: " + datos.getGanador() + "!");
-            iniciarCarreraButton.setDisable(true);
-            carreraTerminada = true;
-            if (timer != null) timer.stop();
-        } else {
-            iniciarCarreraButton.setDisable(jugadoresConectados < 4);
-        }
+        jugadoresConectados = jugadoresActuales.size();
+        System.out.println("Jugadores conectados: " + jugadoresConectados);
+
+        Platform.runLater(() -> {
+            for (Jugador jugador : jugadoresActuales) {
+                int idx = obtenerIndicePorId(jugador.getId());
+                if (idx >= 0) {
+                    imagenCamellos[idx].setX(jugador.getPosicionX());
+                }
+            }
+
+            if (datos.getGanador() != null) {
+                texto.setText("¡Ganó: " + datos.getGanador() + "!");
+                iniciarCarreraButton.setDisable(true);
+                carreraTerminada = true;
+                if (timer != null) timer.stop();
+            } else {
+                iniciarCarreraButton.setDisable(jugadoresConectados < TAM_GRUPO);
+            }
+        });
     }
 
     private void actualizarJugadorLocal(String id, double nuevaPosicion) {
@@ -159,12 +208,9 @@ public class CamelController {
     }
 
     private int obtenerIndicePorId(String id) {
-        switch(id) {
-            case "jugador_1": return 0;
-            case "jugador_2": return 1;
-            case "jugador_3": return 2;
-            case "jugador_4": return 3;
-            default: return -1;
+        for (int i = 0; i < JUGADORES_IDS.length; i++) {
+            if (JUGADORES_IDS[i].equals(id)) return i;
         }
+        return -1;
     }
 }

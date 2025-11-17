@@ -11,12 +11,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 
 public class Servidor {
 
     private static final int PORT = 6000;
-    private static final int TAM_GRUPO = 4;
+    public static final int TAM_GRUPO = 4;
 
     private ServerSocket servidor;
     private List<Socket> clientesPendientes = Collections.synchronizedList(new ArrayList<>());
@@ -27,32 +29,38 @@ public class Servidor {
     private List<String> multicastDisponibles = Arrays.asList(
             "230.0.0.1", "230.0.0.2", "230.0.0.3"
     );
-
     private int indiceMulticast = 0;
+
+    private ExecutorService pool = Executors.newFixedThreadPool(10);
 
     public void iniciar() throws Exception {
         servidor = new ServerSocket(PORT);
         System.out.println("[SERVER] Servidor escuchando en puerto " + PORT);
 
-        while (true) {
-            Socket cliente = servidor.accept();
-            System.out.println("[SERVER] Nuevo cliente conectado: " + cliente.getInetAddress());
-            new Thread(() -> gestionarCliente(cliente)).start();
+        try {
+            while (true) {
+                Socket cliente = servidor.accept();
+                System.out.println("[SERVER] Nuevo cliente conectado: " + cliente.getInetAddress());
+                pool.execute(() -> gestionarCliente(cliente));
+            }
+        } finally {
+            if (servidor != null) servidor.close();
+            pool.shutdown();
         }
     }
 
     private void gestionarCliente(Socket cliente) {
-        try {
-            synchronized (clientesPendientes) {
-                clientesPendientes.add(cliente);
-                System.out.println("[SERVER] Cliente añadido. Total: " + clientesPendientes.size());
+        synchronized (clientesPendientes) {
+            clientesPendientes.add(cliente);
+            System.out.println("[SERVER] Cliente añadido. Total: " + clientesPendientes.size());
 
-                if (clientesPendientes.size() == TAM_GRUPO) {
+            if (clientesPendientes.size() == TAM_GRUPO) {
+                try {
                     crearGrupo();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -67,34 +75,35 @@ public class Servidor {
         String ipMulticast = multicastDisponibles.get(indiceMulticast);
         indiceMulticast = (indiceMulticast + 1) % multicastDisponibles.size();
 
-        int puertoMulticast = 5000 + idGrupo; // Ejemplo de puerto multicast
+        int puertoMulticast = 5000 + idGrupo;
         long semillaCarrera = System.currentTimeMillis();
 
         for (Socket cliente : grupo) {
-            new Thread(() -> {
+            pool.execute(() -> {
+                ObjectOutputStream out = null;
+                ObjectInputStream in = null;
                 try {
-                    ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
-                    out.flush(); // Muy importante para evitar bloqueo
-                    ObjectInputStream in = new ObjectInputStream(cliente.getInputStream());
+                    out = new ObjectOutputStream(cliente.getOutputStream());
+                    out.flush();
+                    in = new ObjectInputStream(cliente.getInputStream());
 
-                    // Leer solicitud del cliente
                     SolicitudConexion solicitud = (SolicitudConexion) in.readObject();
                     System.out.println("[SERVER] Recibida Solicitud de: " + solicitud.idCliente);
 
-                    // Crear asignación con todos los datos
                     AsignacionGrupo asignacion = new AsignacionGrupo(
                             idGrupo, ipMulticast, puertoMulticast, TAM_GRUPO, semillaCarrera
                     );
 
-                    // Enviar respuesta al cliente
                     out.writeObject(asignacion);
                     out.flush();
-
-                    cliente.close();
                 } catch (Exception e) {
                     e.printStackTrace();
+                } finally {
+                    try { if (in != null) in.close(); } catch (Exception ignored) {}
+                    try { if (out != null) out.close(); } catch (Exception ignored) {}
+                    try { if (cliente != null) cliente.close(); } catch (Exception ignored) {}
                 }
-            }).start();
+            });
         }
     }
 

@@ -5,11 +5,8 @@ import tarea.camelrace.CamelController;
 
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class ClienteMulticastUDP {
-
 
     private String nombreUsuario;
     private String multicastIP;
@@ -34,33 +31,29 @@ public class ClienteMulticastUDP {
     }
 
     public void iniciar() {
-        SocketAddress sockadd = null;
-        NetworkInterface netIf = null;
         try {
-
             socket = new MulticastSocket(multicastPort);
             grupo = InetAddress.getByName(multicastIP);
 
-            sockadd = new InetSocketAddress(grupo, multicastPort);
-            netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+            NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+            SocketAddress sockadd = new InetSocketAddress(grupo, multicastPort);
             socket.joinGroup(sockadd, netIf);
+
             conectado = true;
 
             System.out.println("Conectado al grupo " + multicastIP + ":" + multicastPort);
 
+            // Lanzar hilo para recibir mensajes
             Thread hiloRecepcion = new Thread(this::recibirMensajes);
-            Thread hiloEnvio = new Thread(this::enviarJugadores);
-
+            hiloRecepcion.setDaemon(true);
             hiloRecepcion.start();
-            hiloEnvio.start();
 
-            hiloRecepcion.join();
-            hiloEnvio.join();
-
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error: " + e.getMessage());
-        } finally {
-            desconectar(sockadd, netIf);
+        } catch (IOException e) {
+            System.err.println("Error iniciando cliente multicast: " + e.getMessage());
+            conectado = false;
+            if (socket != null) {
+                socket.close();
+            }
         }
     }
 
@@ -79,48 +72,15 @@ public class ClienteMulticastUDP {
                 System.out.println("Datos recibidos: " + datos);
 
                 if (controlador != null) {
+                    // Actualizar UI en hilo aplicación JavaFX
                     Platform.runLater(() -> controlador.actualizarDatosJugadores(datos));
                 }
 
             } catch (IOException | ClassNotFoundException e) {
                 if (conectado) System.err.println("Error recibiendo: " + e.getMessage());
+                // Considerar romper el ciclo o reconectar si fuera necesario
             }
         }
-    }
-
-    private void enviarJugadores() {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
-            while (conectado) {
-                System.out.print("Ingrese posición X del jugador (o 'salir' para terminar): ");
-                String input = in.readLine();
-
-                if (input.equals("salir")) break;
-
-                try {
-                    double posicionX = Double.parseDouble(input);
-                    Jugador jugador = new Jugador(nombreUsuario, posicionX, "jugador_" + nombreUsuario);
-                    DatosCarrera datos = new DatosCarrera(new ArrayList<>(List.of(jugador)), true, null);
-
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ObjectOutputStream oos = new ObjectOutputStream(baos);
-                    oos.writeObject(datos);
-                    oos.close();
-
-                    byte[] buf = baos.toByteArray();
-                    DatagramPacket paquete = new DatagramPacket(buf, buf.length, grupo, multicastPort);
-                    socket.send(paquete);
-
-                    System.out.println("Enviado: " + jugador);
-
-                } catch (NumberFormatException e) {
-                    System.out.println("Por favor ingrese un número válido para la posición X");
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("Error enviando: " + e.getMessage());
-        }
-
-        conectado = false;
     }
 
     public void enviarDatosCarrera(DatosCarrera datos) {
@@ -141,12 +101,15 @@ public class ClienteMulticastUDP {
         }
     }
 
-    private void desconectar(SocketAddress sockadd, NetworkInterface netIf) {
+    public void desconectar() {
         conectado = false;
         try {
-            if (socket != null && sockadd != null && netIf != null) {
+            if (socket != null && grupo != null) {
+                NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+                SocketAddress sockadd = new InetSocketAddress(grupo, multicastPort);
                 socket.leaveGroup(sockadd, netIf);
                 socket.close();
+                System.out.println("Desconectado del grupo " + multicastIP);
             }
         } catch (IOException e) {
             System.err.println("Error desconectando: " + e.getMessage());
