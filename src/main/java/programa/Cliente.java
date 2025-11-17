@@ -8,8 +8,8 @@ import tarea.camelrace.*;
 
 public class Cliente {
 
-    private static final String HOST_SERVIDOR = "localhost";
-    private static final int PUERTO_TCP = 6004;
+    private static final String HOST_SERVIDOR = "192.168.113.13";
+    private static final int PUERTO_TCP = 6000;
 
     public static void main(String[] args) {
         try {

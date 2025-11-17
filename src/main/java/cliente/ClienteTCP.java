@@ -16,7 +16,7 @@ public class ClienteTCP {
     }
 
     public AsignacionGrupo conectar() throws Exception {
-        Socket socket = new Socket(hostServidor, 6004);
+        Socket socket = new Socket(hostServidor, 6000);
         System.out.println("[CLIENT] Conectado al servidor TCP");
 
         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
