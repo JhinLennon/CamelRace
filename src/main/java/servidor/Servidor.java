@@ -1,5 +1,10 @@
 package servidor;
 
+import mensajes.AsignacionGrupo;
+import mensajes.SolicitudConexion;
+
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -10,32 +15,24 @@ import java.util.concurrent.Semaphore;
 
 public class Servidor {
 
-
     private static final int PORT = 6000;
     private static final int TAM_GRUPO = 4;
-
 
     private ServerSocket servidor;
     private List<Socket> clientesPendientes = Collections.synchronizedList(new ArrayList<>());
 
-
     private Semaphore semIdGrupo = new Semaphore(1);
     private int nextGroupId = 1;
 
-
-    // Lista de IP multicast predefinidas (puedes ampliarlas)
     private List<String> multicastDisponibles = Arrays.asList(
             "230.0.0.1", "230.0.0.2", "230.0.0.3"
     );
 
-
     private int indiceMulticast = 0;
-
 
     public void iniciar() throws Exception {
         servidor = new ServerSocket(PORT);
         System.out.println("[SERVER] Servidor escuchando en puerto " + PORT);
-
 
         while (true) {
             Socket cliente = servidor.accept();
@@ -44,13 +41,11 @@ public class Servidor {
         }
     }
 
-
     private void gestionarCliente(Socket cliente) {
         try {
             synchronized (clientesPendientes) {
                 clientesPendientes.add(cliente);
                 System.out.println("[SERVER] Cliente añadido. Total: " + clientesPendientes.size());
-
 
                 if (clientesPendientes.size() == TAM_GRUPO) {
                     crearGrupo();
@@ -61,15 +56,46 @@ public class Servidor {
         }
     }
 
-
     private void crearGrupo() throws Exception {
         List<Socket> grupo = new ArrayList<>(clientesPendientes);
         clientesPendientes.clear();
 
-
         semIdGrupo.acquire();
         int idGrupo = nextGroupId++;
         semIdGrupo.release();
+
+        String ipMulticast = multicastDisponibles.get(indiceMulticast);
+        indiceMulticast = (indiceMulticast + 1) % multicastDisponibles.size();
+
+        int puertoMulticast = 5000 + idGrupo; // Ejemplo de puerto multicast
+        long semillaCarrera = System.currentTimeMillis();
+
+        for (Socket cliente : grupo) {
+            new Thread(() -> {
+                try {
+                    ObjectOutputStream out = new ObjectOutputStream(cliente.getOutputStream());
+                    out.flush(); // Muy importante para evitar bloqueo
+                    ObjectInputStream in = new ObjectInputStream(cliente.getInputStream());
+
+                    // Leer solicitud del cliente
+                    SolicitudConexion solicitud = (SolicitudConexion) in.readObject();
+                    System.out.println("[SERVER] Recibida Solicitud de: " + solicitud.idCliente);
+
+                    // Crear asignación con todos los datos
+                    AsignacionGrupo asignacion = new AsignacionGrupo(
+                            idGrupo, ipMulticast, puertoMulticast, TAM_GRUPO, semillaCarrera
+                    );
+
+                    // Enviar respuesta al cliente
+                    out.writeObject(asignacion);
+                    out.flush();
+
+                    cliente.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
     }
 
     public static void main(String[] args) {
