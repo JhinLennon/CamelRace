@@ -21,10 +21,10 @@ public class ClienteTCP {
         System.out.println("[CLIENT] Conectado al servidor TCP");
 
         ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+        out.flush(); // Importante para que el otro extremo no se quede esperando el header
         ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
-
         out.writeObject(new SolicitudConexion(idCliente));
-        out.flush();
+
 
         System.out.println("[CLIENT] Esperando asignación de grupo...");
 
