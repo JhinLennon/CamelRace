@@ -68,37 +68,20 @@ public class ClienteMulticastUDP {
         }
     }
 
-    private boolean obtenerGrupoDelServidor() {
+    private boolean obtenerGrupoDelServidor(){
         System.out.println("Conectando al servidor para obtener grupo multicast...");
+        try{
+        ClienteTCP clienteTCP = new ClienteTCP(nombreUsuario, "localhost");
+        AsignacionGrupo asignacion = clienteTCP.conectar();
 
-        String serverHost = "localhost";
-        int serverPuerto = 8080;
+        // Extraer la información del grupo multicast
+        this.multicastIP = asignacion.ipMulticast;
+        this.multicastPort = asignacion.puerto;
 
-        try (Socket serverSocket = new Socket(serverHost, serverPuerto);
-             BufferedReader in = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()))) {
+        System.out.println("Grupo asignado: " + multicastIP + ":" + multicastPort);
+        return true;
 
-            String respuesta = in.readLine();
-            System.out.println("Servidor: " + respuesta);
-
-            if (respuesta.startsWith("WAITING")) {
-                System.out.println("Esperando asignación de grupo multicast...");
-
-                while ((respuesta = in.readLine()) != null) {
-                    System.out.println("Servidor: " + respuesta);
-
-                    if (respuesta.startsWith("GROUP_ASSIGNED:")) {
-                        String[] partes = respuesta.split(":");
-                        if (partes.length >= 3) {
-                            this.multicastIP = partes[1];
-                            this.multicastPort = Integer.parseInt(partes[2]);
-                            System.out.println("Grupo asignado: " + multicastIP + ":" + multicastPort);
-                            return true;
-                        }
-                    }
-                }
-            }
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Error conectando al servidor: " + e.getMessage());
         }
 
