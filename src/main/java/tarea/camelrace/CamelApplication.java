@@ -14,7 +14,7 @@ public class CamelApplication extends Application {
                 CamelApplication.class.getResource("camel-view.fxml")
         );
         Scene scene = new Scene(fxmlLoader.load(), 967, 606);
-        stage.setTitle("Hello!");
+        stage.setTitle("CamelRace:");
         stage.setScene(scene);
         stage.show();
     }

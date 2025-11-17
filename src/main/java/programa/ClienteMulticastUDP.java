@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ClienteMulticastUDP {
+
+
     private String nombreUsuario;
     private String multicastIP;
     private int multicastPort;
@@ -72,7 +74,7 @@ public class ClienteMulticastUDP {
         System.out.println("Conectando al servidor para obtener grupo multicast...");
 
         String serverHost = "localhost";
-        int serverPuerto = 8080;
+        int serverPuerto = 6004;
 
         try (Socket serverSocket = new Socket(serverHost, serverPuerto);
              BufferedReader in = new BufferedReader(new InputStreamReader(serverSocket.getInputStream()))) {

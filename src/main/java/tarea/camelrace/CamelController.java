@@ -18,6 +18,7 @@ public class CamelController {
 
     @FXML private Label texto;
     @FXML private Button iniciarCarreraButton;
+    @FXML private Button conectarButton;
     @FXML private TextField nombreCamello;
     @FXML private ImageView imagenCamellos1;
     @FXML private ImageView imagenCamellos2;
@@ -28,7 +29,7 @@ public class CamelController {
     private final double META_X = 750;
     private AnimationTimer timer;
     private ClienteMulticastUDP clienteMulticastUDP;
-    private String nombrePropioCamello = "Camello";
+    private String nombrePropioCamello = "";
     private String idJugador = "jugador_1";
     private boolean carreraTerminada = false;
     private List<Jugador> jugadoresActuales = new ArrayList<>();
@@ -42,11 +43,25 @@ public class CamelController {
                 imagenCamellos3,
                 imagenCamellos4
         };
+        iniciarCarreraButton.setDisable(true);
     }
 
     public void setClienteMulticastUDP(ClienteMulticastUDP cliente) {
         this.clienteMulticastUDP = cliente;
         cliente.setControlador(this);
+    }
+
+    @FXML
+    public void conectar() {
+        if (nombreCamello.getText().trim().isEmpty()) {
+            texto.setText("Por favor, introduce un nombre.");
+            return;
+        }
+        nombrePropioCamello = nombreCamello.getText().trim();
+        conectarButton.setDisable(true);
+        nombreCamello.setDisable(true);
+        texto.setText("Conectado como: " + nombrePropioCamello);
+        iniciarCarreraButton.setDisable(false);
     }
 
     @FXML
@@ -141,12 +156,6 @@ public class CamelController {
         if (!encontrado) {
             jugadoresActuales.add(new Jugador(nombrePropioCamello, nuevaPosicion, id));
         }
-    }
-
-    @FXML
-    public void asignarNombreCamello() {
-        nombrePropioCamello = nombreCamello.getText();
-        System.out.println("Nombre asignado: " + nombrePropioCamello);
     }
 
     private int obtenerIndicePorId(String id) {

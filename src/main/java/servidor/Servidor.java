@@ -11,7 +11,7 @@ import java.util.concurrent.Semaphore;
 public class Servidor {
 
 
-    private static final int PORT = 6004;
+    private static final int PORT = 6000;
     private static final int TAM_GRUPO = 4;
 
 

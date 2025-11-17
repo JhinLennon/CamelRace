@@ -41,7 +41,7 @@
 
         <HBox alignment="CENTER" prefHeight="231.0" prefWidth="846.0">
             <children>
-                <Label id="texto" fx:id="texto" text="TEXTO">
+                <Label id="texto" fx:id="texto" text="¡Bienvenido!">
                     <font>
                         <Font name="Consolas Italic" size="38.0" />
                     </font>
@@ -52,34 +52,34 @@
         <HBox alignment="CENTER" spacing="10">
             <Label text="Nombre de tu camello:" />
             <TextField fx:id="nombreCamello" prefWidth="150" />
-            <Button onAction="#asignarNombreCamello" text="Asignar" />
+            <Button fx:id="conectarButton" onAction="#conectar" text="Conectar" />
         </HBox>
 
-        <Button fx:id="iniciarCarreraButton" onAction="#onIniciarCarreraClick" prefWidth="158.0" text="Iniciar carrera">
+        <Button fx:id="iniciarCarreraButton" disable="true" onAction="#onIniciarCarreraClick" prefWidth="158.0" text="Iniciar carrera">
             <font>
                 <Font name="Arial" size="14.0" />
             </font>
         </Button>
     </VBox>
 
-    <!-- Panel de camellos (capa superior) -->
+                   <!-- Panel de camellos (capa superior) -->
     <Pane fx:id="paneCamellos" mouseTransparent="true" pickOnBounds="false">
         <ImageView fx:id="imagenCamellos1" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="21.0" preserveRatio="true">
             <image>
                 <Image url="@../../images/camel.png" />
             </image>
         </ImageView>
-        <ImageView fx:id="imagenCamellos2" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="138.0" preserveRatio="true">
+        <ImageView fx:id="imagenCamellos2" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="136.0" preserveRatio="true">
             <image>
                 <Image url="@../../images/camel.png" />
             </image>
         </ImageView>
-        <ImageView fx:id="imagenCamellos3" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="256.0" preserveRatio="true">
+        <ImageView fx:id="imagenCamellos3" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="254.0" preserveRatio="true">
             <image>
                 <Image url="@../../images/camel.png" />
             </image>
         </ImageView>
-        <ImageView fx:id="imagenCamellos4" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="371.0" preserveRatio="true">
+        <ImageView fx:id="imagenCamellos4" fitHeight="70.0" fitWidth="142.0" layoutX="28.0" layoutY="372.0" preserveRatio="true">
             <image>
                 <Image url="@../../images/camel.png" />
             </image>

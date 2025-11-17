@@ -7,7 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-class ClienteTCP {
+public class ClienteTCP {
     private String idCliente;
     private String hostServidor;
     public ClienteTCP(String id, String host) {
