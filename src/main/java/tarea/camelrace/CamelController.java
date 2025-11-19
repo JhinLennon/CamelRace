@@ -7,6 +7,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
+import mensajes.AsignacionGrupo;
 import programa.ClienteMulticastUDP;
 import programa.DatosCarrera;
 import programa.Jugador;
@@ -63,17 +64,18 @@ public class CamelController {
         }
         nombrePropioCamello = nombreInput;
 
-        // Asignar ID único basado en IDs disponibles y jugadores actuales
-        for (String id : JUGADORES_IDS) {
-            boolean idEnUso = jugadoresActuales.stream().anyMatch(j -> j.getId().equals(id));
-            if (!idEnUso) {
-                idJugador = id;
-                break;
-            }
-        }
+        // Enviar solicitud al servidor aquí (asumiendo otro método o hilo que haga esto)
+        // Y luego recibir AsignacionGrupo con la ID asignada que se pasará a recibirAsignacionGrupo()
+
         conectarButton.setDisable(true);
         nombreCamello.setDisable(true);
 
+        texto.setText("Conectando...");
+    }
+
+    // Método que llama el código que recibe AsignacionGrupo del servidor
+    public void recibirAsignacionGrupo(AsignacionGrupo asignacion) {
+        this.idJugador = asignacion.getIdJugador();
         texto.setText("Conectado como: " + nombrePropioCamello + " (" + idJugador + ")");
         iniciarCarreraButton.setDisable(false);
     }
@@ -87,9 +89,8 @@ public class CamelController {
         DatosCarrera datosInicial = new DatosCarrera(jugadoresIniciales, false, null);
         clienteMulticastUDP.enviarDatosCarrera(datosInicial);
 
-        // Esperar un momento para que se propague el mensaje y se actualicen los jugadores conectados
         try {
-            Thread.sleep(500); // 0.5 segundos, ajustar según necesidad
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -119,7 +120,7 @@ public class CamelController {
         if (carreraTerminada) return;
         int idx = obtenerIndicePorId(idJugador);
         if (idx < 0) return;
-        double velocidad = Math.random() * 20 + 10; // Velocidad aleatoria entre 10 y 30
+        double velocidad = Math.random() * 20 + 10;
         double nuevaPosicion = imagenCamellos[idx].getX() + velocidad;
         imagenCamellos[idx].setX(nuevaPosicion);
 
@@ -137,7 +138,7 @@ public class CamelController {
 
     private void verificarMeta() {
         int idx = obtenerIndicePorId(idJugador);
-        if (idx >=0 && imagenCamellos[idx].getX() >= META_X) {
+        if (idx >= 0 && imagenCamellos[idx].getX() >= META_X) {
             carreraTerminada = true;
             if (timer != null) timer.stop();
             carreraTerminada();
@@ -154,7 +155,6 @@ public class CamelController {
     public void actualizarDatosJugadores(DatosCarrera datos) {
         System.out.println("Datos recibidos: " + datos);
 
-        // Fusionar lista de jugadores actual con la recibida
         for (Jugador nuevoJugador : datos.getJugadores()) {
             boolean encontrado = false;
             for (Jugador j : jugadoresActuales) {

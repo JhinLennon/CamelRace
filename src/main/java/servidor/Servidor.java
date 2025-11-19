@@ -31,6 +31,10 @@ public class Servidor {
     );
     private int indiceMulticast = 0;
 
+    private final String[] JUGADORES_IDS = {
+            "jugador_1", "jugador_2", "jugador_3", "jugador_4"
+    };
+
     private ExecutorService pool = Executors.newFixedThreadPool(10);
 
     public void iniciar() throws Exception {
@@ -78,7 +82,10 @@ public class Servidor {
         int puertoMulticast = 5000 + idGrupo;
         long semillaCarrera = System.currentTimeMillis();
 
-        for (Socket cliente : grupo) {
+        for (int i = 0; i < grupo.size(); i++) {
+            Socket cliente = grupo.get(i);
+            final String idJugador = JUGADORES_IDS[i]; // Asignar ID único por orden
+
             pool.execute(() -> {
                 ObjectOutputStream out = null;
                 ObjectInputStream in = null;
@@ -90,9 +97,11 @@ public class Servidor {
                     SolicitudConexion solicitud = (SolicitudConexion) in.readObject();
                     System.out.println("[SERVER] Recibida Solicitud de: " + solicitud.idCliente);
 
+                    // Enviar asignación con ID de jugador incluida
                     AsignacionGrupo asignacion = new AsignacionGrupo(
                             idGrupo, ipMulticast, puertoMulticast, TAM_GRUPO, semillaCarrera
                     );
+                    asignacion.setIdJugador(idJugador);  // NUEVO campo para jugador ID
 
                     out.writeObject(asignacion);
                     out.flush();
