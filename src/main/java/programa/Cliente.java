@@ -30,7 +30,7 @@ public class Cliente extends Application {
         controlador = loader.getController();
 
         // Crear el cliente UDP con los datos obtenidos
-        clienteUDP = new ClienteMulticastUDP("jugador01", asignacion.ipMulticast, asignacion.puerto);
+        clienteUDP = new ClienteMulticastUDP(ID, asignacion.ipMulticast, asignacion.puerto);
 
         // Pasar cliente UDP al controlador
         controlador.setClienteMulticastUDP(clienteUDP);
