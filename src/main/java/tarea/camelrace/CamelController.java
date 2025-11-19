@@ -1,5 +1,6 @@
 package tarea.camelrace;
 
+import cliente.ClienteTCP;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -63,26 +64,45 @@ public class CamelController {
             return;
         }
         nombrePropioCamello = nombreInput;
-
-        // Enviar solicitud al servidor aquí (asumiendo otro método o hilo que haga esto)
-        // Y luego recibir AsignacionGrupo con la ID asignada que se pasará a recibirAsignacionGrupo()
-
         conectarButton.setDisable(true);
         nombreCamello.setDisable(true);
-
         texto.setText("Conectando...");
+
+        new Thread(() -> {
+            try {
+                ClienteTCP clienteTCP = new ClienteTCP(nombrePropioCamello, "localhost");
+                AsignacionGrupo asignacion = clienteTCP.conectar();
+                Platform.runLater(() -> {
+                    recibirAsignacionGrupo(asignacion);
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> {
+                    texto.setText("Error al conectar con servidor.");
+                    conectarButton.setDisable(false);
+                    nombreCamello.setDisable(false);
+                });
+            }
+        }).start();
     }
 
-    // Método que llama el código que recibe AsignacionGrupo del servidor
     public void recibirAsignacionGrupo(AsignacionGrupo asignacion) {
         this.idJugador = asignacion.getIdJugador();
         texto.setText("Conectado como: " + nombrePropioCamello + " (" + idJugador + ")");
         iniciarCarreraButton.setDisable(false);
+
+        // Iniciar cliente multicast UDP con datos recibidos
+        iniciarClienteMulticast(asignacion);
+    }
+
+    private void iniciarClienteMulticast(AsignacionGrupo asignacion) {
+        clienteMulticastUDP = new ClienteMulticastUDP(nombrePropioCamello, asignacion.ipMulticast, asignacion.puerto);
+        clienteMulticastUDP.setControlador(this);
+        clienteMulticastUDP.iniciar();
     }
 
     @FXML
     protected void onIniciarCarreraClick() {
-        // Crear y enviar datos iniciales del jugador con posición 0
         Jugador jugadorInicial = new Jugador(nombrePropioCamello, 0.0, idJugador);
         List<Jugador> jugadoresIniciales = new ArrayList<>();
         jugadoresIniciales.add(jugadorInicial);

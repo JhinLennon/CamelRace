@@ -11,7 +11,7 @@ public class AsignacionGrupo implements Serializable {
     public int tamGrupo;
     public long semillaCarrera;
 
-    private String idJugador; // Nuevo campo para la ID del jugador
+    private String idJugador; // Nuevo campo
 
     public AsignacionGrupo(int id, String ip, int p, int t, long seed) {
         idGrupo = id;
@@ -21,7 +21,6 @@ public class AsignacionGrupo implements Serializable {
         semillaCarrera = seed;
     }
 
-    // Getter y setter para idJugador
     public String getIdJugador() {
         return idJugador;
     }

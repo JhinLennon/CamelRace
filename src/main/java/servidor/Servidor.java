@@ -7,10 +7,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -27,7 +24,7 @@ public class Servidor {
     private int nextGroupId = 1;
 
     private List<String> multicastDisponibles = Arrays.asList(
-            "231.0.0.1", "231.0.0.2", "231.0.0.3"
+            "230.0.0.1", "230.0.0.2", "230.0.0.3"
     );
     private int indiceMulticast = 0;
 
@@ -84,7 +81,7 @@ public class Servidor {
 
         for (int i = 0; i < grupo.size(); i++) {
             Socket cliente = grupo.get(i);
-            final String idJugador = JUGADORES_IDS[i]; // Asignar ID único por orden
+            final String idJugador = JUGADORES_IDS[i];
 
             pool.execute(() -> {
                 ObjectOutputStream out = null;
@@ -97,11 +94,10 @@ public class Servidor {
                     SolicitudConexion solicitud = (SolicitudConexion) in.readObject();
                     System.out.println("[SERVER] Recibida Solicitud de: " + solicitud.idCliente);
 
-                    // Enviar asignación con ID de jugador incluida
                     AsignacionGrupo asignacion = new AsignacionGrupo(
                             idGrupo, ipMulticast, puertoMulticast, TAM_GRUPO, semillaCarrera
                     );
-                    asignacion.setIdJugador(idJugador);  // NUEVO campo para jugador ID
+                    asignacion.setIdJugador(idJugador);
 
                     out.writeObject(asignacion);
                     out.flush();
