@@ -27,7 +27,7 @@ public class Servidor {
     private int nextGroupId = 1;
 
     private List<String> multicastDisponibles = Arrays.asList(
-            "230.0.0.1", "230.0.0.2", "230.0.0.3"
+            "231.0.0.1", "231.0.0.2", "231.0.0.3"
     );
     private int indiceMulticast = 0;
 
