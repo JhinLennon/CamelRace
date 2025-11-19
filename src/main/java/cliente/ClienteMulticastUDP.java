@@ -1,6 +1,7 @@
-package programa;
+package cliente;
 
 import javafx.application.Platform;
+import mensajes.DatosCarrera;
 import tarea.camelrace.CamelController;
 
 import java.io.*;

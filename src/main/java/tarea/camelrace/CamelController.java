@@ -6,9 +6,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.image.ImageView;
-import programa.ClienteMulticastUDP;
-import programa.DatosCarrera;
-import programa.Jugador;
+import cliente.ClienteMulticastUDP;
+import mensajes.DatosCarrera;
+import mensajes.Jugador;
 import javafx.animation.AnimationTimer;
 import mensajes.AsignacionGrupo;
 
