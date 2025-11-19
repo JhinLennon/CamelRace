@@ -1,5 +1,6 @@
 package programa;
-import tarea.camelrace.*;
+
+import tarea.camelrace.CamelController;
 import cliente.ClienteTCP;
 import mensajes.AsignacionGrupo;
 import javafx.application.Application;
@@ -7,14 +8,12 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import tarea.camelrace.CamelController;
+import programa.ClienteMulticastUDP;
 
 public class Cliente extends Application {
 
     public static final String ID = "jugador04";
     public static final String HOST = "localhost";
-    private ClienteMulticastUDP clienteUDP;
-    private CamelController controlador;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -27,13 +26,14 @@ public class Cliente extends Application {
         Parent root = loader.load();
 
         // Obtener controlador real
-        controlador = loader.getController();
+        CamelController controlador = loader.getController();
 
         // Crear el cliente UDP con los datos obtenidos
-        clienteUDP = new ClienteMulticastUDP(ID, asignacion.ipMulticast, asignacion.puerto);
+        ClienteMulticastUDP clienteUDP = new ClienteMulticastUDP(ID, asignacion.ipMulticast, asignacion.puerto);
 
-        // Pasar cliente UDP al controlador
+        // Pasar cliente UDP y asignación al controlador
         controlador.setClienteMulticastUDP(clienteUDP);
+        controlador.setAsignacionGrupo(asignacion);
 
         // Configurar y mostrar la ventana
         Scene scene = new Scene(root);
@@ -42,7 +42,7 @@ public class Cliente extends Application {
         primaryStage.show();
 
         // Iniciar el cliente UDP en un hilo independiente para no bloquear la UI
-        new Thread(() -> clienteUDP.iniciar()).start();
+        new Thread(clienteUDP::iniciar).start();
     }
 
     public static void main(String[] args) {

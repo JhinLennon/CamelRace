@@ -1,7 +1,5 @@
 package tarea.camelrace;
 
-import cliente.ClienteTCP;
-import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -12,6 +10,7 @@ import mensajes.AsignacionGrupo;
 import programa.ClienteMulticastUDP;
 import programa.DatosCarrera;
 import programa.Jugador;
+import javafx.animation.AnimationTimer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +42,8 @@ public class CamelController {
     private List<Jugador> jugadoresActuales = new ArrayList<>();
     private int jugadoresConectados = 0;
 
+    private AsignacionGrupo asignacionGrupo;
+
     @FXML
     public void initialize() {
         imagenCamellos = new ImageView[] {
@@ -56,49 +57,24 @@ public class CamelController {
         cliente.setControlador(this);
     }
 
+    public void setAsignacionGrupo(AsignacionGrupo asignacion) {
+        this.asignacionGrupo = asignacion;
+        this.idJugador = asignacion.getIdJugador();
+        this.nombrePropioCamello = asignacion.getIdJugador(); // o recibirlo external
+
+        Platform.runLater(() -> {
+            texto.setText("Conectado como: " + idJugador);
+            iniciarCarreraButton.setDisable(false);
+            conectarButton.setDisable(true);
+            nombreCamello.setDisable(true);
+        });
+    }
+
     @FXML
     public void conectar() {
-        String nombreInput = nombreCamello.getText().trim();
-        if (nombreInput.isEmpty()) {
-            texto.setText("Por favor, introduce un nombre.");
-            return;
-        }
-        nombrePropioCamello = nombreInput;
+        texto.setText("Ya conectado, listo para comenzar la carrera.");
         conectarButton.setDisable(true);
         nombreCamello.setDisable(true);
-        texto.setText("Conectando...");
-
-        new Thread(() -> {
-            try {
-                ClienteTCP clienteTCP = new ClienteTCP(nombrePropioCamello, "localhost");
-                AsignacionGrupo asignacion = clienteTCP.conectar();
-                Platform.runLater(() -> {
-                    recibirAsignacionGrupo(asignacion);
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-                Platform.runLater(() -> {
-                    texto.setText("Error al conectar con servidor.");
-                    conectarButton.setDisable(false);
-                    nombreCamello.setDisable(false);
-                });
-            }
-        }).start();
-    }
-
-    public void recibirAsignacionGrupo(AsignacionGrupo asignacion) {
-        this.idJugador = asignacion.getIdJugador();
-        texto.setText("Conectado como: " + nombrePropioCamello + " (" + idJugador + ")");
-        iniciarCarreraButton.setDisable(false);
-
-        // Iniciar cliente multicast UDP con datos recibidos
-        iniciarClienteMulticast(asignacion);
-    }
-
-    private void iniciarClienteMulticast(AsignacionGrupo asignacion) {
-        clienteMulticastUDP = new ClienteMulticastUDP(nombrePropioCamello, asignacion.ipMulticast, asignacion.puerto);
-        clienteMulticastUDP.setControlador(this);
-        clienteMulticastUDP.iniciar();
     }
 
     @FXML
@@ -110,7 +86,7 @@ public class CamelController {
         clienteMulticastUDP.enviarDatosCarrera(datosInicial);
 
         try {
-            Thread.sleep(500);
+            Thread.sleep(500); // espera para sincronizar jugadores
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -140,6 +116,7 @@ public class CamelController {
         if (carreraTerminada) return;
         int idx = obtenerIndicePorId(idJugador);
         if (idx < 0) return;
+
         double velocidad = Math.random() * 20 + 10;
         double nuevaPosicion = imagenCamellos[idx].getX() + velocidad;
         imagenCamellos[idx].setX(nuevaPosicion);
