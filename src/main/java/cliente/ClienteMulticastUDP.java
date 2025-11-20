@@ -6,6 +6,7 @@ import tarea.camelrace.CamelController;
 
 import java.io.*;
 import java.net.*;
+import java.util.Collections;
 
 public class ClienteMulticastUDP {
 
@@ -36,7 +37,25 @@ public class ClienteMulticastUDP {
             socket = new MulticastSocket(multicastPort);
             grupo = InetAddress.getByName(multicastIP);
 
-            NetworkInterface netIf = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+            // Seleccionar interfaz REAL (no loopback)
+            NetworkInterface netIf = null;
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (ni.supportsMulticast() && ni.isUp() && !ni.isLoopback()) {
+                    netIf = ni;
+                    break;
+                }
+            }
+
+            if (netIf == null) {
+                throw new IOException("No hay interfaz válida para multicast.");
+            }
+
+            System.out.println("Usando interfaz multicast: " + netIf.getDisplayName());
+
+            // Muy importante:
+            socket.setNetworkInterface(netIf);
+
+            // Unirse al grupo
             SocketAddress sockadd = new InetSocketAddress(grupo, multicastPort);
             socket.joinGroup(sockadd, netIf);
 
@@ -44,7 +63,6 @@ public class ClienteMulticastUDP {
 
             System.out.println("Conectado al grupo " + multicastIP + ":" + multicastPort);
 
-            // Lanzar hilo para recibir mensajes
             Thread hiloRecepcion = new Thread(this::recibirMensajes);
             hiloRecepcion.setDaemon(true);
             hiloRecepcion.start();
@@ -52,11 +70,10 @@ public class ClienteMulticastUDP {
         } catch (IOException e) {
             System.err.println("Error iniciando cliente multicast: " + e.getMessage());
             conectado = false;
-            if (socket != null) {
-                socket.close();
-            }
+            if (socket != null) socket.close();
         }
     }
+
 
     private void recibirMensajes() {
         byte[] buffer = new byte[4096];

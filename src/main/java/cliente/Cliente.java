@@ -11,7 +11,7 @@ import javafx.stage.Stage;
 public class Cliente extends Application {
 
     public static final String ID = "jugador03";
-    public static final String HOST = "192.168.1.38" ;
+    public static final String HOST = "192.168.113.14" ;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
