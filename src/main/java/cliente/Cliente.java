@@ -11,7 +11,7 @@ import javafx.stage.Stage;
 public class Cliente extends Application {
 
     public static final String ID = "jugador03";
-    public static final String HOST = "192.168.113.14" ;
+    public static final String HOST = "192.168.113.11" ;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -36,7 +36,7 @@ public class Cliente extends Application {
         // Configurar y mostrar la ventana
         Scene scene = new Scene(root);
         primaryStage.setScene(scene);
-        primaryStage.setTitle("Camel Race");
+        primaryStage.setTitle("Camel Race - " + asignacion.getIdJugador());
         primaryStage.show();
 
         // Iniciar el cliente UDP en un hilo independiente para no bloquear la UI

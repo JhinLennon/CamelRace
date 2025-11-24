@@ -8,7 +8,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 public class ClienteTCP {
-    public static final int PORT = 6000;
+    public static final int PORT = 6004;
     private String idCliente;
     private String hostServidor;
 

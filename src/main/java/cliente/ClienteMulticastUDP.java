@@ -53,11 +53,7 @@ public class ClienteMulticastUDP {
             System.out.println("Usando interfaz multicast: " + netIf.getDisplayName());
 
             // Muy importante:
-            socket.setNetworkInterface(netIf);
-
-            // Unirse al grupo
-            SocketAddress sockadd = new InetSocketAddress(grupo, multicastPort);
-            socket.joinGroup(sockadd, netIf);
+            socket.joinGroup(grupo);
 
             conectado = true;
 
