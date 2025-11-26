@@ -16,19 +16,11 @@ public class Cliente extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
 
-        //Intentar obtener ID y HOST desde argumentos
         var params = getParameters();
 
-        ID = params.getNamed().getOrDefault("id", null);
-        HOST = params.getNamed().getOrDefault("host", null);
-
-        // Si no vienen por argumentos, intentar por propiedades del sistema
-        if (ID == null) ID = System.getProperty("ID");
-        if (HOST == null) HOST = System.getProperty("HOST");
-
-        // Si siguen sin llegar, usar valores por defecto o lanzar error
-        if (ID == null) ID = "jugador03";
-        if (HOST == null) HOST = "localhost";
+        // Obtener parámetros nombrados generados por main()
+        ID = params.getNamed().getOrDefault("id", "jugador03");
+        HOST = params.getNamed().getOrDefault("host", "localhost");
 
         System.out.println("Cliente iniciado con:");
         System.out.println("   ID   = " + ID);
@@ -58,11 +50,20 @@ public class Cliente extends Application {
         primaryStage.setTitle("Camel Race");
         primaryStage.show();
 
-        // UDP en un hilo separado
         new Thread(clienteUDP::iniciar).start();
     }
 
     public static void main(String[] args) {
-        launch(args);
+
+        // Defaults
+        String id = "jugador03";
+        String host = "localhost";
+
+        // Si el usuario pasa parámetros posicionales, sobrescribirlos
+        if (args.length > 0) id = args[0];
+        if (args.length > 1) host = args[1];
+
+        // Transformarlos a argumentos que JavaFX detecta
+        launch("--id=" + id, "--host=" + host);
     }
 }
