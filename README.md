@@ -1,12 +1,18 @@
-# CamelRace
+# CamelRace — Sistema de Carreras Multicast en Red Local
 
-Sistema cliente–servidor que organiza carreras de camellos en red local. El servidor forma grupos de jugadores, asigna direcciones multicast y coordina la ejecución de una carrera distribuida mediante intercambio de objetos serializados.
+CamelRace es un sistema cliente–servidor que organiza carreras de camellos en una red local.  
+Los clientes se conectan al servidor vía TCP, reciben la asignación de su grupo y se unen a una dirección Multicast UDP donde se simula la carrera en tiempo real.
 
 ## 1. Descripción General
 
-CamelRace implementa un modelo **TCP + Multicast UDP** para permitir que varios clientes se descubran, reciban un canal exclusivo y participen en una carrera simulada.
-El servidor acepta conexiones, forma grupos de 3–4 clientes y asigna a cada grupo una **IP multicast única** junto con un puerto.
-Los clientes reciben esta información, se unen al grupo multicast y envían/reciben objetos que representan eventos de la carrera.
+El servidor agrupa automáticamente a los jugadores en equipos de 3–4 clientes y les asigna:
+
+- Una IP multicast exclusiva
+- Un puerto
+- Un idGrupo
+- Una semilla de la carrera
+
+Los clientes se unen al canal multicast y reciben los eventos de la carrera en tiempo real.
 
 ## 2. Estructura del Proyecto
 
@@ -57,8 +63,8 @@ src/main/java/
 
 ## 3. Requisitos
 
-* **JavaFX 21.0.6**
-* **JDK 25**
+* **JavaFX 21.0.6 (funciona con JDK 17)**
+* **JDK 17**
 * Proyecto **Maven**
 * Todos los clientes deben ejecutarse en la misma LAN.
 
@@ -77,9 +83,16 @@ El proyecto se construye automáticamente desde IntelliJ usando Maven.
    ```
 2. **Ejecutar cada cliente (hasta 4 por grupo)**
 
-   ```
-   Ejecutar CamelApplication.java o Cliente.java
-   ```
+   
+   El cliente ahora acepta parámetros desde consola:
+```
+--id    identificador del jugador  
+--host  dirección del servidor
+
+
+java -jar CamelRace.jar --id=jugador03 --host=192.168.1.38
+```
+   
 3. Al completarse un grupo, el servidor asigna:
 
     * IP multicast (231.0.0.x)

@@ -10,36 +10,55 @@ import javafx.stage.Stage;
 
 public class Cliente extends Application {
 
-    public static final String ID = "jugador03";
-    public static final String HOST = "192.168.1.38" ;
+    private String ID;
+    private String HOST;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        // Conectar vía TCP y obtener datos multicast
+
+        //Intentar obtener ID y HOST desde argumentos
+        var params = getParameters();
+
+        ID = params.getNamed().getOrDefault("id", null);
+        HOST = params.getNamed().getOrDefault("host", null);
+
+        // Si no vienen por argumentos, intentar por propiedades del sistema
+        if (ID == null) ID = System.getProperty("ID");
+        if (HOST == null) HOST = System.getProperty("HOST");
+
+        // Si siguen sin llegar, usar valores por defecto o lanzar error
+        if (ID == null) ID = "jugador03";
+        if (HOST == null) HOST = "localhost";
+
+        System.out.println("Cliente iniciado con:");
+        System.out.println("   ID   = " + ID);
+        System.out.println("   HOST = " + HOST);
+
+        // Conectar vía TCP
         ClienteTCP clienteTCP = new ClienteTCP(ID, HOST);
         AsignacionGrupo asignacion = clienteTCP.conectar();
 
-        // Cargar interfaz FXML
+        // Cargar interfaz
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/tarea/camelrace/camel-view.fxml"));
         Parent root = loader.load();
 
-        // Obtener controlador real
+        // Obtener controlador
         CamelController controlador = loader.getController();
 
-        // Crear el cliente UDP con los datos obtenidos
+        // Crear cliente UDP
         ClienteMulticastUDP clienteUDP = new ClienteMulticastUDP(ID, asignacion.ipMulticast, asignacion.puerto);
 
-        // Pasar cliente UDP y asignación al controlador
+        // Pasar parámetros al controlador
         controlador.setClienteMulticastUDP(clienteUDP);
         controlador.setAsignacionGrupo(asignacion);
 
-        // Configurar y mostrar la ventana
+        // Mostrar la ventana
         Scene scene = new Scene(root);
         primaryStage.setScene(scene);
         primaryStage.setTitle("Camel Race");
         primaryStage.show();
 
-        // Iniciar el cliente UDP en un hilo independiente para no bloquear la UI
+        // UDP en un hilo separado
         new Thread(clienteUDP::iniciar).start();
     }
 
