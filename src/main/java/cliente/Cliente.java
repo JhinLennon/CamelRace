@@ -56,7 +56,7 @@ public class Cliente extends Application {
     public static void main(String[] args) {
 
         // Defaults
-        String id = "jugador03";
+        String id = "jugador";
         String host = "localhost";
 
         // Si el usuario pasa parámetros posicionales, sobrescribirlos
