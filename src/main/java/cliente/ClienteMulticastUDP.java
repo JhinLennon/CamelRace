@@ -6,6 +6,7 @@ import tarea.camelrace.CamelController;
 
 import java.io.*;
 import java.net.*;
+import java.util.Collections;
 import java.util.Enumeration;
 
 public class ClienteMulticastUDP {
@@ -80,13 +81,25 @@ public class ClienteMulticastUDP {
                 if (!ni.isUp()) continue;
                 if (ni.isLoopback()) continue;
                 if (!ni.supportsMulticast()) continue;
+                if (ni.isVirtual()) continue;
 
-                System.out.println("Candidato multicast: " + ni.getDisplayName());
-                return ni;
+                // Recorre sus direcciones IP
+                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+                    if (addr instanceof Inet4Address) {
+                        String ip = addr.getHostAddress();
+                        if (ip.startsWith("192.168.113.")) {
+                            System.out.println("Interfaz multicast seleccionada: " + ni.getDisplayName() + " (" + ip + ")");
+                            return ni;
+                        }
+                    }
+                }
+
             } catch (Exception ignored) {}
         }
         return null;
     }
+
+
 
     private void recibirMensajes() {
         byte[] buffer = new byte[4096];
