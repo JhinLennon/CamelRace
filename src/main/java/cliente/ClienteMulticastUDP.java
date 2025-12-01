@@ -1,6 +1,5 @@
 package cliente;
 
-import javafx.application.Platform;
 import mensajes.DatosCarrera;
 import tarea.camelrace.CamelController;
 
@@ -11,163 +10,140 @@ import java.util.Enumeration;
 
 public class ClienteMulticastUDP {
 
-    private String nombreUsuario;
-    private String multicastIP;
-    private int multicastPort;
+    private String idJugador;
     private MulticastSocket socket;
-    private boolean conectado;
     private InetAddress grupo;
+    private int multicastPort;
+    private String multicastIP;
+    private boolean conectado = false;
     private CamelController controlador;
 
-    public ClienteMulticastUDP(String nombreUsuario, String multicastIP, int multicastPort) {
-        this.nombreUsuario = nombreUsuario;
+    public ClienteMulticastUDP(String idJugador, String multicastIP, int port) {
+        this.idJugador = idJugador;
         this.multicastIP = multicastIP;
-        this.multicastPort = multicastPort;
+        this.multicastPort = port;
     }
 
     public void setControlador(CamelController controlador) {
         this.controlador = controlador;
     }
 
+    // ============================================================
+    // Detecta IP local física 192.168.113.X
+    // ============================================================
+    private InetAddress obtenerIPLocalCorrecta() throws Exception {
+        Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
+
+        while (nets.hasMoreElements()) {
+            NetworkInterface ni = nets.nextElement();
+
+            if (!ni.isUp() || ni.isLoopback() || ni.isVirtual()) continue;
+
+            for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+                if (addr instanceof Inet4Address &&
+                        addr.getHostAddress().startsWith("192.168.113.")) {
+
+                    System.out.println("[UDP] IP detectada para multicast: " + addr.getHostAddress());
+                    return addr;
+                }
+            }
+        }
+
+        throw new RuntimeException("No se encontró IP válida 192.168.113.X");
+    }
+
+    // ============================================================
+    // Iniciar cliente multicast (Windows friendly)
+    // ============================================================
     public void iniciar() {
         try {
             grupo = InetAddress.getByName(multicastIP);
 
-            socket = new MulticastSocket(multicastPort);
+            InetAddress ipLocal = obtenerIPLocalCorrecta();
 
-            // TTL más alto (evita redes que bloquean TTL=1)
+            socket = new MulticastSocket(new InetSocketAddress(ipLocal, multicastPort));
             socket.setTimeToLive(16);
 
-            // Seleccionar la interfaz física correcta
-            NetworkInterface netIf = elegirInterfazMulticast();
+            System.out.println("[UDP] Usando IP local: " + ipLocal.getHostAddress());
 
-            if (netIf == null) {
-                throw new IOException("No se encontró una interfaz válida para multicast");
-            }
-
-            System.out.println("→ Usando interfaz: " + netIf.getDisplayName());
-
-            socket.setNetworkInterface(netIf);
-
-            SocketAddress sockAddr = new InetSocketAddress(grupo, multicastPort);
-
-            socket.joinGroup(sockAddr, netIf);
+            socket.joinGroup(new InetSocketAddress(grupo, multicastPort), null);
 
             conectado = true;
-            System.out.println("Conectado al grupo multicast " + multicastIP + ":" + multicastPort);
+            System.out.println("[UDP] Conectado al grupo " + multicastIP + ":" + multicastPort);
 
-            // Hilo para escuchar mensajes
             Thread hilo = new Thread(this::recibirMensajes);
             hilo.setDaemon(true);
             hilo.start();
 
-        } catch (IOException e) {
-            System.err.println("Error iniciando cliente multicast: " + e.getMessage());
-            conectado = false;
+        } catch (Exception e) {
+            System.err.println("[UDP] Error iniciando cliente multicast: " + e.getMessage());
             if (socket != null) socket.close();
         }
     }
 
-    /**
-     * Selecciona la interfaz de red adecuada para multicast.
-     */
-    private NetworkInterface elegirInterfazMulticast() throws SocketException {
-        Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
+    // ============================================================
+    // Enviar DatosCarrera por UDP
+    // ============================================================
+    public void enviarDatosCarrera(DatosCarrera datos) {
+        if (!conectado) return;
 
-        while (ifaces.hasMoreElements()) {
-            NetworkInterface ni = ifaces.nextElement();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
 
-            try {
-                if (!ni.isUp()) continue;
-                if (ni.isLoopback()) continue;
-                if (!ni.supportsMulticast()) continue;
-                if (ni.isVirtual()) continue;
+            oos.writeObject(datos);
+            oos.flush();
+            byte[] buffer = baos.toByteArray();
 
-                // Recorre sus direcciones IP
-                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
-                    if (addr instanceof Inet4Address) {
-                        String ip = addr.getHostAddress();
-                        if (ip.startsWith("192.168.113.")) {
-                            System.out.println("Interfaz multicast seleccionada: " + ni.getDisplayName() + " (" + ip + ")");
-                            return ni;
-                        }
-                    }
-                }
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, grupo, multicastPort);
+            socket.send(packet);
 
-            } catch (Exception ignored) {}
+        } catch (IOException e) {
+            System.err.println("[UDP] Error enviando datos: " + e.getMessage());
         }
-        return null;
     }
 
-
-
+    // ============================================================
+    // Escuchar mensajes
+    // ============================================================
     private void recibirMensajes() {
-        byte[] buffer = new byte[4096];
+        byte[] buffer = new byte[65535];
 
         while (conectado) {
             try {
-                DatagramPacket paquete = new DatagramPacket(buffer, buffer.length);
-                socket.receive(paquete);
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                socket.receive(packet);
 
-                ObjectInputStream ois = new ObjectInputStream(
-                        new ByteArrayInputStream(paquete.getData(), 0, paquete.getLength())
-                );
+                try (ObjectInputStream ois = new ObjectInputStream(
+                        new ByteArrayInputStream(packet.getData(), 0, packet.getLength()))) {
 
-                DatosCarrera datos = (DatosCarrera) ois.readObject();
-                ois.close();
+                    DatosCarrera datos = (DatosCarrera) ois.readObject();
 
-                System.out.println("Recibido UDP: " + datos);
-
-                if (controlador != null) {
-                    Platform.runLater(() -> controlador.actualizarDatosJugadores(datos));
+                    if (controlador != null) {
+                        controlador.actualizarDatosJugadores(datos);
+                    }
                 }
 
             } catch (IOException | ClassNotFoundException e) {
                 if (conectado)
-                    System.err.println("Error recibiendo multicast: " + e.getMessage());
+                    System.err.println("[UDP] Error recibiendo mensajes: " + e.getMessage());
             }
         }
     }
 
-    public void enviarDatosCarrera(DatosCarrera datos) {
-        if (!conectado) return;
-
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(baos);
-            oos.writeObject(datos);
-            oos.close();
-
-            byte[] buf = baos.toByteArray();
-
-            DatagramPacket paquete = new DatagramPacket(buf, buf.length, grupo, multicastPort);
-
-            socket.send(paquete);
-
-            System.out.println("Enviado UDP: " + datos);
-
-        } catch (IOException e) {
-            System.err.println("Error enviando UDP: " + e.getMessage());
-        }
-    }
-
+    // ============================================================
+    // Desconectar
+    // ============================================================
     public void desconectar() {
         conectado = false;
 
         try {
             if (socket != null) {
-                NetworkInterface netIf = socket.getNetworkInterface();
-
-                if (netIf != null && grupo != null) {
-                    socket.leaveGroup(new InetSocketAddress(grupo, multicastPort), netIf);
-                }
-
+                socket.leaveGroup(new InetSocketAddress(grupo, multicastPort), null);
                 socket.close();
-                System.out.println("Desconectado de multicast");
+                System.out.println("[UDP] Desconectado de multicast");
             }
-
-        } catch (Exception e) {
-            System.err.println("Error al desconectar multicast: " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("[UDP] Error al desconectar: " + e.getMessage());
         }
     }
 }
