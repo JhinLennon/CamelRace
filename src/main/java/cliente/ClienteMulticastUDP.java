@@ -17,7 +17,7 @@ public class ClienteMulticastUDP {
     private String multicastIP;
     private boolean conectado = false;
     private CamelController controlador;
-    private NetworkInterface networkInterface; // GUARDAR la interfaz
+    private NetworkInterface networkInterface;
 
     public ClienteMulticastUDP(String idJugador, String multicastIP, int port) {
         this.idJugador = idJugador;
@@ -30,7 +30,7 @@ public class ClienteMulticastUDP {
     }
 
     // ============================================================
-    // Detecta IP local física 192.168.113.X
+    // Detecta INTERFAZ 192.168.113.X (tu red local del aula)
     // ============================================================
     private NetworkInterface obtenerInterfazCorrecta() throws Exception {
         Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
@@ -38,67 +38,56 @@ public class ClienteMulticastUDP {
         while (nets.hasMoreElements()) {
             NetworkInterface ni = nets.nextElement();
 
-            // Verificar que sea válida para multicast
-            if (!ni.isUp() || ni.isLoopback() || !ni.supportsMulticast()) {
-                System.out.println("[UDP] Descartando interfaz: " + ni.getDisplayName());
+            if (!ni.isUp() || ni.isLoopback() || !ni.supportsMulticast())
                 continue;
-            }
 
-            System.out.println("[UDP] Analizando interfaz: " + ni.getDisplayName());
-
-            // Buscar IP 192.168.113.X
             for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
                 if (addr instanceof Inet4Address &&
                         addr.getHostAddress().startsWith("192.168.113.")) {
 
-                    System.out.println("[UDP] ✅ Interfaz encontrada: " +
-                            ni.getDisplayName() + " - IP: " + addr.getHostAddress());
+                    System.out.println("[UDP] Usando interfaz: " + ni.getDisplayName());
                     return ni;
                 }
             }
         }
 
-        // Si no encuentra 192.168.113.X, usar cualquier interfaz con IPv4
-        System.out.println("[UDP] ⚠️ No se encontró 192.168.113.X, buscando alternativa...");
+        // Alternativa si no encuentra 192.168.113.X
         nets = NetworkInterface.getNetworkInterfaces();
 
         while (nets.hasMoreElements()) {
             NetworkInterface ni = nets.nextElement();
-
             if (!ni.isUp() || ni.isLoopback() || !ni.supportsMulticast()) continue;
 
             for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
                 if (addr instanceof Inet4Address && !addr.isLinkLocalAddress()) {
-                    System.out.println("[UDP] ✅ Usando interfaz alternativa: " +
-                            ni.getDisplayName() + " - IP: " + addr.getHostAddress());
+                    System.out.println("[UDP] Interfaz alternativa: " + ni.getDisplayName());
                     return ni;
                 }
             }
         }
 
-        throw new RuntimeException("No se encontró interfaz de red válida para multicast");
+        throw new RuntimeException("No se encontró interfaz válida para multicast");
     }
 
     // ============================================================
-    // Iniciar cliente multicast CORREGIDO
+    // Iniciar Multicast con loopback ACTIVADO
     // ============================================================
     public void iniciar() {
         try {
             grupo = InetAddress.getByName(multicastIP);
 
-            // 1. Obtener interfaz de red
             networkInterface = obtenerInterfazCorrecta();
 
-            // 2. Crear socket CON CONFIGURACIÓN CRÍTICA
-            socket = new MulticastSocket(multicastPort); // NO bindear a IP específica
+            socket = new MulticastSocket(multicastPort);
 
-            // 3. CONFIGURACIONES IMPRESCINDIBLES
-            socket.setReuseAddress(true); // ✅ PERMITE MÚLTIPLES RECEPTORES
-            socket.setTimeToLive(32);     // ✅ TTL suficiente para red local
-            socket.setSoTimeout(0);       // ✅ Sin timeout
-            socket.setLoopbackMode(true); // ✅ Recibir nuestros propios mensajes (para debug)
+            // CONFIGURACIONES IMPORTANTES
+            socket.setReuseAddress(true);
+            socket.setTimeToLive(32);
+            socket.setSoTimeout(0);
 
-            // 4. Obtener IP local para mostrar (opcional)
+            // *** REPARADO ***
+            socket.setLoopbackMode(false); // <--- ACTIVA loopback correctamente
+
             InetAddress ipLocal = null;
             for (InetAddress addr : Collections.list(networkInterface.getInetAddresses())) {
                 if (addr instanceof Inet4Address) {
@@ -107,89 +96,67 @@ public class ClienteMulticastUDP {
                 }
             }
 
-            System.out.println("[UDP] Usando interfaz: " + networkInterface.getDisplayName());
             System.out.println("[UDP] IP local: " + (ipLocal != null ? ipLocal.getHostAddress() : "N/A"));
-            System.out.println("[UDP] TTL: " + socket.getTimeToLive());
 
-            // 5. UNIRSE AL GRUPO CORRECTAMENTE (ESTA ES LA CLAVE)
+            // Unirse al grupo
             socket.joinGroup(new InetSocketAddress(grupo, multicastPort), networkInterface);
 
             conectado = true;
-            System.out.println("[UDP] ✅ Conectado al grupo " + multicastIP + ":" + multicastPort);
+            System.out.println("[UDP] Conectado a " + multicastIP + ":" + multicastPort);
 
-            // 6. Iniciar hilo receptor
+            // Hilo receptor
             Thread hilo = new Thread(this::recibirMensajes);
-            hilo.setName("Multicast-Receiver-" + idJugador);
             hilo.setDaemon(true);
             hilo.start();
 
-            // 7. Enviar mensaje de prueba (opcional)
             enviarMensajePrueba();
 
         } catch (Exception e) {
-            System.err.println("[UDP] ❌ Error iniciando cliente multicast: " + e.getMessage());
+            System.err.println("[UDP] Error iniciando: " + e.getMessage());
             e.printStackTrace();
             if (socket != null) socket.close();
-            conectado = false;
         }
     }
 
     // ============================================================
-    // Enviar mensaje de prueba al conectar
+    // Mensaje de prueba
     // ============================================================
     private void enviarMensajePrueba() {
         try {
-            String mensajePrueba = "CONEXION:" + idJugador + ":" +
-                    InetAddress.getLocalHost().getHostName();
-            byte[] buffer = mensajePrueba.getBytes("UTF-8");
-
-            DatagramPacket packet = new DatagramPacket(
-                    buffer, buffer.length, grupo, multicastPort
-            );
+            String mensaje = "CONEXION:" + idJugador;
+            byte[] buffer = mensaje.getBytes("UTF-8");
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, grupo, multicastPort);
             socket.send(packet);
-
-            System.out.println("[UDP] Mensaje de prueba enviado: " + mensajePrueba);
-        } catch (Exception e) {
-            System.err.println("[UDP] Error enviando mensaje prueba: " + e.getMessage());
-        }
+        } catch (Exception ignored) {}
     }
 
     // ============================================================
-    // Enviar DatosCarrera por UDP
+    // Enviar DatosCarrera como objeto
     // ============================================================
     public void enviarDatosCarrera(DatosCarrera datos) {
-        if (!conectado || socket == null || socket.isClosed()) {
-            System.err.println("[UDP] No conectado, no se puede enviar");
-            return;
-        }
+        if (!conectado) return;
 
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              ObjectOutputStream oos = new ObjectOutputStream(baos)) {
 
             oos.writeObject(datos);
-            oos.flush();
             byte[] buffer = baos.toByteArray();
 
-            DatagramPacket packet = new DatagramPacket(
-                    buffer, buffer.length, grupo, multicastPort
-            );
+            DatagramPacket packet =
+                    new DatagramPacket(buffer, buffer.length, grupo, multicastPort);
+
             socket.send(packet);
 
-            System.out.println("[UDP] 📤 Datos enviados: " + datos);
-
         } catch (IOException e) {
-            System.err.println("[UDP] ❌ Error enviando datos: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("[UDP] Error enviando datos: " + e.getMessage());
         }
     }
 
     // ============================================================
-    // Escuchar mensajes - CORREGIDO
+    // Recibir mensajes MULTICAST
     // ============================================================
     private void recibirMensajes() {
         byte[] buffer = new byte[65535];
-
-        System.out.println("[UDP] 🎧 Iniciando recepción de mensajes...");
 
         while (conectado && !socket.isClosed()) {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -197,77 +164,37 @@ public class ClienteMulticastUDP {
             try {
                 socket.receive(packet);
 
-                // Ignorar nuestros propios mensajes si no quieres procesarlos
-                if (packet.getAddress().equals(InetAddress.getLocalHost())) {
-                    continue;
-                }
+                ByteArrayInputStream bais =
+                        new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
+                ObjectInputStream ois = new ObjectInputStream(bais);
 
-                System.out.println("[UDP] 📥 Paquete recibido de: " +
-                        packet.getAddress().getHostAddress() + ":" + packet.getPort() +
-                        " - Tamaño: " + packet.getLength() + " bytes");
+                Object obj = ois.readObject();
 
-                // Procesar como objeto
-                try (ByteArrayInputStream bais = new ByteArrayInputStream(
-                        packet.getData(), 0, packet.getLength());
-                     ObjectInputStream ois = new ObjectInputStream(bais)) {
-
-                    Object obj = ois.readObject();
-
-                    if (obj instanceof DatosCarrera) {
-                        DatosCarrera datos = (DatosCarrera) obj;
-
-                        if (controlador != null) {
-                            controlador.actualizarDatosJugadores(datos);
-                        }
-
-                        System.out.println("[UDP] ✅ Datos procesados");
+                if (obj instanceof DatosCarrera datos) {
+                    if (controlador != null) {
+                        controlador.actualizarDatosJugadores(datos);
                     }
                 }
 
-            } catch (SocketTimeoutException e) {
-                // Timeout configurado, ignorar
-            } catch (EOFException e) {
-                System.err.println("[UDP] ⚠️ EOF - Paquete corrupto o vacío");
-            } catch (StreamCorruptedException e) {
-                System.err.println("[UDP] ⚠️ Stream corrupto - Formato incorrecto");
-            } catch (ClassNotFoundException e) {
-                System.err.println("[UDP] ❌ Clase no encontrada: " + e.getMessage());
-            } catch (IOException e) {
-                if (conectado) {
-                    System.err.println("[UDP] ❌ Error en recepción: " + e.getMessage());
-                    // e.printStackTrace();
-                }
-            }
+            } catch (Exception ignored) {}
         }
-
-        System.out.println("[UDP] Receptor finalizado");
     }
 
     // ============================================================
-    // Desconectar CORREGIDO
+    // Desconectar
     // ============================================================
     public void desconectar() {
-        System.out.println("[UDP] Desconectando...");
         conectado = false;
 
         try {
             if (socket != null && !socket.isClosed()) {
-                // Dejar el grupo usando la misma interfaz
                 socket.leaveGroup(new InetSocketAddress(grupo, multicastPort), networkInterface);
-
-                // Cerrar socket
                 socket.close();
-                System.out.println("[UDP] ✅ Desconectado de multicast");
             }
-        } catch (IOException e) {
-            System.err.println("[UDP] Error al desconectar: " + e.getMessage());
-        }
+        } catch (Exception ignored) {}
     }
 
-    // ============================================================
-    // Método para verificar estado
-    // ============================================================
     public boolean estaConectado() {
-        return conectado && socket != null && !socket.isClosed();
+        return conectado;
     }
 }
